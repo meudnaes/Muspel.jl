@@ -4,19 +4,27 @@ using AtomicData
 using BifrostTools
 
 """
-Test function to calculate Fe I 617 nm disk-centre intensities.
-Incomplete, not working.
-"""
 function calc_fe(
     xp::BifrostExperiment,
-    snap::Integer;
+    snap::Integer,
+    fe::AtomicModel;
     slicex::AbstractVector{<:Integer}=Int[], 
     slicey::AbstractVector{<:Integer}=Int[],
     slicez::AbstractVector{<:Integer}=Int[],
     verbose::Bool=false
 )
 
-    fe = read_atom(joinpath(AtomicData.get_atom_dir(), "FeI_mag.yaml"))
+Function to calculate Fe I 617 nm disk-centre intensities from Bifrost snapshot.
+"""
+function calc_fe(
+    xp::BifrostExperiment,
+    snap::Integer,
+    fe::AtomicModel;
+    slicex::AbstractVector{<:Integer}=Int[], 
+    slicey::AbstractVector{<:Integer}=Int[],
+    slicez::AbstractVector{<:Integer}=Int[],
+    verbose::Bool=false
+)
     my_line = fe.lines[3]  # 617.3 nm line, nλ = 74
     fe_abund = get_solar_abundances()[:Fe]
 
@@ -24,7 +32,7 @@ function calc_fe(
     z = xp.mesh.z[slicez] .* 1f6
     
     if verbose
-        println("--- Loading snapshot variables")
+        println("--- Loading snapshot variables ---")
     end
     # <read mesh, T, vz, n_e, rho>
     rho = get_var(xp,snap,"r",units="si",slicex=slicex,slicey=slicey,slicez=slicez)
@@ -42,7 +50,7 @@ function calc_fe(
     electron_density = permutedims(electron_density, new_dims)
 
     if verbose
-        println("--- Computing populations")
+        println("--- Computing populations ---")
     end
 
     grph = 2.380491f-27

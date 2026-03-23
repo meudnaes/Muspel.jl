@@ -2,6 +2,7 @@ using Muspel
 using Base.Threads
 using AtomicData
 using BifrostTools
+using ProgressMeter
 
 """
 function calc_fe(
@@ -104,14 +105,17 @@ function calc_fe(
         println("--- Calculating intensity ---")
     end
 
-    intensity = Array{Float32, 3}(undef, my_line.nλ, atmos.nx, atmos.ny)
+    intensity = Array{Float32, 3}(undef, my_line.nλ, atmos.ny, atmos.nx)
 
-    buf = RTBuffer(atmos.nz, my_line.nλ, Float32)
-    for i in 1:atmos.nx
+    p = ProgressMeter.Progress(atmos.nx)
+    @threads for i in 1:atmos.nx
+        buf = RTBuffer(atmos.nz, my_line.nλ, Float32)  # allocate inside for local scope
         for j in 1:atmos.ny
-            calc_line_1D!(my_line,buf,atmos[j, i],n_u[:, j, i],n_l[:, j, i],σ_itp,voigt_itp)
+            calc_line_prep!(my_line, buf, atmos[:, j, i], σ_itp)
+            calc_line_1D!(my_line, buf, line.λ, atmos[:, j, i], n_u[:, j, i], n_l[:, j, i], voigt_itp)
             intensity[:, j, i] = buf.intensity
         end
+        ProgressMeter.next!(p)
     end
 
     return intensity

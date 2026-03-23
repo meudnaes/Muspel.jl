@@ -9,14 +9,14 @@ Incomplete, not working.
 """
 function calc_fe(
     xp::BifrostExperiment,
-    snap::Integer,
-    fe::AtomicModel;
+    snap::Integer;
     slicex::AbstractVector{<:Integer}=Int[], 
     slicey::AbstractVector{<:Integer}=Int[],
     slicez::AbstractVector{<:Integer}=Int[],
     verbose::Bool=false
 )
 
+    fe = read_atom(joinpath(AtomicData.get_atom_dir(), "FeI_mag.yaml"))
     my_line = fe.lines[3]  # 617.3 nm line, nλ = 74
     fe_abund = get_solar_abundances()[:Fe]
 

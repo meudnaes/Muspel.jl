@@ -9,6 +9,7 @@ function calc_fe(
     xp::BifrostExperiment,
     snap::Integer,
     fe::AtomicModel;
+    λ::AbstractVector{<:Real}=Float64[],
     slicex::AbstractVector{<:Integer}=Int[], 
     slicey::AbstractVector{<:Integer}=Int[],
     slicez::AbstractVector{<:Integer}=Int[],
@@ -21,6 +22,7 @@ function calc_fe(
     xp::BifrostExperiment,
     snap::Integer,
     fe::AtomicModel;
+    λ::AbstractVector{<:Real}=Float64[],
     slicex::AbstractVector{<:Integer}=Int[], 
     slicey::AbstractVector{<:Integer}=Int[],
     slicez::AbstractVector{<:Integer}=Int[],
@@ -28,9 +30,6 @@ function calc_fe(
 )
     my_line = fe.lines[3]  # 617.3 nm line, nλ = 74
     fe_abund = get_solar_abundances()[:Fe]
-
-    # Take a slice and convert to meter
-    z = xp.mesh.z[slicez] .* 1f6
     
     if verbose
         println("--- Loading snapshot variables ---")
@@ -43,6 +42,17 @@ function calc_fe(
     v_z = get_var(xp,snap,"pz",units="si",slicex=slicex,slicey=slicey,slicez=slicez,destagger=true)
     v_z ./= rho
 
+    # Fix indices
+    isempty(slicex) && ( slicex = 1:xp.mesh.mx )
+    isempty(slicey) && ( slicey = 1:xp.mesh.my )
+    isempty(slicez) && ( slicez = 1:xp.mesh.mz )
+
+    x = xp.mesh.x[slicex] * 1f6 # to SI units
+    y = -xp.mesh.y[slicey] * 1f6 # rotate and to SI units
+    z = -xp.mesh.z[slicez] * 1f6 # rotate and to SI units
+
+    nx=length(x); ny=length(y); nz=length(z)
+    
     # Permute dims so that (x, y, z) -> (z, y, x)
     new_dims = (3,2,1)
     rho = permutedims(rho, new_dims)
@@ -55,7 +65,7 @@ function calc_fe(
     end
 
     grph = 2.380491f-27
-    n_H = rho ./ grph
+    n_H = rho ./ grph # To si units
     
     hydrogen1_density = similar(n_H)
     proton_density = similar(n_H)
@@ -74,8 +84,17 @@ function calc_fe(
         n_u[i] = fe_pops[4] * fe_abund
     end
 
-    atmos = Atmosphere1D(xp.mesh.mx,xp.mesh.my,length(z),Float32.(z),temperature,v_z, 
-                electron_density,hydrogen1_density,proton_density)
+    atmos = Atmosphere1D(
+        nx,
+        ny,
+        nz,
+        z,
+        temperature,
+        v_z,
+        electron_density,
+        hydrogen1_density,  # neutral hydrogen across all levels
+        proton_density,
+    )
 
     # Continuum opacity structures
     bckgr_atoms = [
@@ -105,14 +124,18 @@ function calc_fe(
         println("--- Calculating intensity ---")
     end
 
-    intensity = Array{Float32, 3}(undef, my_line.nλ, atmos.ny, atmos.nx)
 
+    isempty(λ) && (λ = my_line.λ)
+    nλ = length(λ)
+    
+    intensity = Array{Float32, 3}(undef, nλ, atmos.ny, atmos.nx)
+    
     p = ProgressMeter.Progress(atmos.nx)
     @threads for i in 1:atmos.nx
-        buf = RTBuffer(atmos.nz, my_line.nλ, Float32)  # allocate inside for local scope
+        buf = RTBuffer(atmos.nz, nλ, Float32)  # allocate inside for local scope
         for j in 1:atmos.ny
             calc_line_prep!(my_line, buf, atmos[:, j, i], σ_itp)
-            calc_line_1D!(my_line, buf, line.λ, atmos[:, j, i], n_u[:, j, i], n_l[:, j, i], voigt_itp)
+            calc_line_1D!(my_line, buf, λ, atmos[:, j, i], n_u[:, j, i], n_l[:, j, i], voigt_itp)
             intensity[:, j, i] = buf.intensity
         end
         ProgressMeter.next!(p)

@@ -9,6 +9,7 @@ function calc_fe(
     xp::BifrostExperiment,
     snap::Integer,
     fe::AtomicModel;
+    selected_line::Integer=3,
     λ::AbstractVector{<:Real}=Float64[],
     slicex::AbstractVector{<:Integer}=Int[], 
     slicey::AbstractVector{<:Integer}=Int[],
@@ -22,13 +23,14 @@ function calc_fe(
     xp::BifrostExperiment,
     snap::Integer,
     fe::AtomicModel;
+    selected_line::Integer=3,
     λ::AbstractVector{<:Real}=Float64[],
     slicex::AbstractVector{<:Integer}=Int[], 
     slicey::AbstractVector{<:Integer}=Int[],
     slicez::AbstractVector{<:Integer}=Int[],
     verbose::Bool=false
 )
-    my_line = fe.lines[3]  # 617.3 nm line, nλ = 74
+    my_line = fe.lines[selected_line]  # 617.3 nm line, nλ = 74
     fe_abund = get_solar_abundances()[:Fe]
     
     if verbose

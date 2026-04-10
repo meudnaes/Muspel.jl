@@ -19,7 +19,7 @@ function calc_fe(
 
 Function to calculate Fe I 617 nm disk-centre intensities from Bifrost snapshot.
 """
-function calc_fe(
+function calc_fe_6173(
     xp::BifrostExperiment,
     snap::Integer,
     fe::AtomicModel;
@@ -143,5 +143,5 @@ function calc_fe(
         ProgressMeter.next!(p)
     end
 
-    return intensity
+    return λ, intensity
 end
